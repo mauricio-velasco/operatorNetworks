@@ -54,11 +54,14 @@ class MonomialWordSupport:
         self.operator_domain_dim = s[0]
 
 
-    def monomial_words_forward(self,vector_x):
-        result = [torch.mv(op, vector_x) for op in self.operator_evaluated_monomial_words ]
-        return result        
-
-
+    def monomial_words_forward(self,x):
+        #Given a matrix f which we think as a collection of rows we will produce an evaluation tensor
+        #E(a1,a2,alpha) = Component a_2 of the vector of x^{\alpha}(T)(f_{a_1})
+        result = []
+        for row_vector in x:
+            TN = torch.stack([torch.mv(op, row_vector) for op in self.operator_evaluated_monomial_words ])
+            result.append(torch.transpose(TN,1,0))
+        return torch.stack(result)
 
     def num_monomial_words(self):
         return len(self.monomial_words)
@@ -79,17 +82,20 @@ class OperatorFilterLayer(nn.Module):
         nn.init.uniform_(self.coefficient_tensor)
 
     def forward(self,x):
+        #By torch conventions matrices are collections of ROWS so we will think of x this way,
         data_shape = x.shape        
-        assert self.operator_domain_dim == data_shape[0] and self.num_features_in == data_shape[1], "Evaluation point x must be matrix of size domain_dim x num_features_in"
-        for b in range(self.num_features_out):
-            pass
+        assert self.monomial_word_support.operator_domain_dim == data_shape[1] and self.num_features_in == data_shape[0], "Evaluation point x must be matrix of size domain_dim x num_features_in"
+        M = self.monomial_word_support
+        evaluations_tensor = M.monomial_words_forward(x)        
+        coefficients_tensor = self.coefficient_tensor
+        #The following contraction defines the filter...
+        res = torch.tensordot( coefficients_tensor, evaluations_tensor,dims = ([1,2],[0,2]))
+        return res
 
 
 
 
-
-
-
+#TESTS:
 def operator_test():
     t0 = torch.rand(2,2)
     t1 = torch.rand(2,2)
@@ -103,7 +109,7 @@ def operator_test():
     assert torch.norm(N2) < 1e-5, "ERROR in evaluation"
 
 if __name__ == "__main__":
-    operator_test() #Verifies that the evaluation behaves correctly. TODO: Should be made into a unit test
+    #operator_test() #Verifies that the evaluation behaves correctly. TODO: Should be made into a unit test
     #One defines an operator tuple as follows
     arr1 = [[0.5, 0], [0, 0.5]]
     arr2 = [[0, 0.5], [0.5, 0.0]]
@@ -113,9 +119,17 @@ if __name__ == "__main__":
     operator_tuple = (t2,t1)
     M = MonomialWordSupport(num_variables=2, allowed_degree = 3)
     M.evaluate_at_operator_tuple(operator_tuple=operator_tuple)
-    vector_x = [1.0,1.0]
-    x_tensor = torch.Tensor(vector_x)#Flip coordinates
-    M.monomial_words_forward(x_tensor)
+    x = [[1.0,1.0], [3.0,1.0], [5.0,2.0]] #We will apply the function to the rows of a matrix. 
+    x_tensor = torch.Tensor(x)#Flip coordinates
+    EvT = M.monomial_words_forward(x_tensor)
+    #Next we build layers,
+    filter_layer = OperatorFilterLayer(num_features_in = 3, num_features_out = 4, monomial_word_support = M)
+    #Our layer has two input and two output dimensions so
+    x = [[1.0,1.0], [3.0,1.0],[4.0,1.0]] #We will apply the function to the rows of a matrix. 
+    x_tensor = torch.Tensor(x) #We think the input is a matrix and we want to evaluate the operator in the
+    res_tensor = filter_layer.forward(x_tensor)
+
+
 
     #All evaluations at done at the level of the support so it is a reasonable place to evaluate performance.
     dim = 100 #number of nodes of the graph, 5000 takes a few mins
@@ -128,3 +142,5 @@ if __name__ == "__main__":
     #Next we build layers,
     filter_layer = OperatorFilterLayer(num_features_in = 2, num_features_out = 2, monomial_word_support = M)
 
+for x in t1:
+    print(x.shape)
