@@ -65,8 +65,11 @@ class MonomialWordSupport:
 
     def num_monomial_words(self):
         return len(self.monomial_words)
-        
 
+    def operator_matrix_from_coeffs(self, coefficients_vector):
+        total_length = self.num_monomial_words()
+        res = sum([coefficients_vector[k] * self.operator_evaluated_monomial_words[k] for k in range(total_length)])        
+        return res
 
 class OperatorFilterLayer(nn.Module):
     def __init__(self, num_features_in,num_features_out, monomial_word_support):        
@@ -75,6 +78,7 @@ class OperatorFilterLayer(nn.Module):
         self.num_features_out = num_features_out
         self.monomial_word_support = monomial_word_support
         num_coeffs = monomial_word_support.num_monomial_words()
+        #the coefficient tensor remembers the coefficients of all the involved polynomials, is an B x A x num_monomials tensor
         coefficient_tensor = torch.Tensor(self.num_features_out, self.num_features_in, num_coeffs)
         self.coefficient_tensor = nn.Parameter(coefficient_tensor) #The tensor of coefficients is the trainable parameter
         assert monomial_word_support.is_evaluated, "The monomial support must be evaluated in an operator tuple to define and train a network."
@@ -96,7 +100,11 @@ class OperatorFilterLayer(nn.Module):
 
 
 #TESTS:
-def operator_test():
+global tol 
+tol = 1e-5
+
+
+def monomial_evaluation_test():
     t0 = torch.rand(2,2)
     t1 = torch.rand(2,2)
     operator_tuple = (t0,t1)
@@ -106,10 +114,67 @@ def operator_test():
     new_monomial = X[0]*X[0]*X[1]*X[1]    
     mon_index = M.monomial_words.index(new_monomial)
     N2 = t0 @ t0 @ t1 @ t1 - M.operator_evaluated_monomial_words[mon_index]
-    assert torch.norm(N2) < 1e-5, "ERROR in evaluation"
+    assert torch.norm(N2) < tol, "ERROR in evaluation"
+
+def operator_matrix_from_coeffs_test():
+    #set up the support, 2 variables degree at most three
+    M = MonomialWordSupport(num_variables=2, allowed_degree = 3)
+    #We define an operator tuple to evaluate the monomial support as follows,
+    arr1 = [[0.5, 0], [0, 0.5]]
+    arr2 = [[0, 0.5], [0.5, 0.0]]
+    #arr2 = [[0, 0.5, 3],[0, 0.5, 3] ]
+    t1 = torch.Tensor(arr1)
+    t2 = torch.Tensor(arr2)
+    operator_tuple = (t2,t1)
+    M.evaluate_at_operator_tuple(operator_tuple=operator_tuple)#Evaluation of the monomial support at the given op tuple.
+    #Next we compute the operator in two ways and compare the results
+    total_monomial_length = M.num_monomial_words()
+    coefficients_vector = torch.zeros(total_monomial_length)
+    monomial_index = 5
+    coefficients_vector[monomial_index] = 3.0 
+    matrix_res = M.operator_matrix_from_coeffs(coefficients_vector=coefficients_vector)
+    computed_res = 3.0*M.operator_evaluated_monomial_words[monomial_index]
+    normres = torch.norm(matrix_res-computed_res)
+    assert normres < tol
+
+def forward_layer_test():
+    #set up the support, 2 variables degree at most three
+    M = MonomialWordSupport(num_variables=2, allowed_degree = 3)
+    #We define an operator tuple to evaluate the monomial support as follows,
+    arr1 = [[0.5, 0], [0, 0.5]]
+    arr2 = [[0, 0.5], [0.5, 0.0]]
+    #arr2 = [[0, 0.5, 3],[0, 0.5, 3] ]
+    t1 = torch.Tensor(arr1)
+    t2 = torch.Tensor(arr2)
+    operator_tuple = (t2,t1)
+    M.evaluate_at_operator_tuple(operator_tuple=operator_tuple)#Evaluation of the monomial support at the given op tuple.
+       
+    #With the evaluated support, we build a filter layer with feature sizes 2,3
+    filter_layer = OperatorFilterLayer(num_features_in = 2, num_features_out = 3, monomial_word_support = M)
+    coefficients_tensor = filter_layer.coefficient_tensor
+    H10 = M.operator_matrix_from_coeffs(coefficients_vector = coefficients_tensor[1,0,:])
+    H11 = M.operator_matrix_from_coeffs(coefficients_vector = coefficients_tensor[1,1,:])
+    #We create a random tensor to test the output 
+    x_tensor = torch.Tensor(2,2) 
+    nn.init.uniform_(x_tensor) #the two 2-diml features are the rows of x_tensor
+    #We compute the output according to the layer
+    y_tensor = filter_layer.forward(x_tensor)
+    target_row = y_tensor[1,:]
+    #and according to the block formula
+    computed_row = torch.mv(H10, x_tensor[0,:]) + torch.mv(H11, x_tensor[1,:]) 
+    diff = target_row-computed_row
+    assert torch.norm(diff) < tol, "ERROR, formula fails to match to desireable accuracy"
+
+
+
+
+
 
 if __name__ == "__main__":
-    #operator_test() #Verifies that the evaluation behaves correctly. TODO: Should be made into a unit test
+    monomial_evaluation_test() #Verifies that the evaluation behaves correctly. TODO: Should be made into a unit test
+    operator_matrix_from_coeffs_test() #Verifies that the evaluation of operators behaves correctly. TODO: Should be made into a unit test
+    forward_layer_test() #Verifies that the contraction in the forward layer agrees with the simple block-formula
+
     #One defines an operator tuple as follows
     arr1 = [[0.5, 0], [0, 0.5]]
     arr2 = [[0, 0.5], [0.5, 0.0]]
