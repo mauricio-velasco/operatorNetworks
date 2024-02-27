@@ -87,16 +87,27 @@ class OperatorFilterLayer(nn.Module):
         nn.init.uniform_(self.coefficient_tensor)
 
     def forward(self,x):
-        #By torch conventions matrices are collections of ROWS so we will think of x this way,
+        #################################################################################
+        # WE DEFINE THE FOLLOWING CONVENTION:
+        # The input x will always be a 3-Tensor, whose components correspond to:
+        # x[i,:,:] is the i-th data point matrix M
+        # The rows M[a,:] of the matrix are the A features, each of which is a  
+        # vector with num_vertices components
+        #################################################################################
+
         data_shape = x.shape 
-        #pdb.set_trace()       
-        assert self.monomial_word_support.operator_domain_dim == data_shape[1] and self.num_features_in == data_shape[0], "Evaluation point x must be matrix of size domain_dim x num_features_in"
+        assert len(data_shape) == 3, "ERROR: Input must be a 3-tensor"
+        assert self.monomial_word_support.operator_domain_dim == data_shape[2] and self.num_features_in == data_shape[1], "Evaluation point x[i,:,:] must be matrix of size num_features x domain dim"
         M = self.monomial_word_support
-        evaluations_tensor = M.monomial_words_forward(x)        
-        coefficients_tensor = self.coefficient_tensor
-        #The following contraction defines the filter...
-        res = torch.tensordot( coefficients_tensor, evaluations_tensor,dims = ([1,2],[0,2]))
-        return res
+        answer_list = []
+        for index in range(data_shape[0]):
+            curr_data_point = x[index,:,:]
+            evaluations_tensor = M.monomial_words_forward(curr_data_point)        
+            coefficients_tensor = self.coefficient_tensor
+            #The following contraction defines the filter...
+            res = torch.tensordot( coefficients_tensor, evaluations_tensor,dims = ([1,2],[0,2]))
+            answer_list.append(res)
+        return torch.stack(answer_list,0)
 
 
 
@@ -195,17 +206,7 @@ if __name__ == "__main__":
     #Our layer has two input and two output dimensions so
     x = [[1.0,1.0], [3.0,1.0],[4.0,1.0]] #We will apply the function to the rows of a matrix. 
     x_tensor = torch.Tensor(x) #We think the input is a matrix and we want to evaluate the operator in the
-    res_tensor = filter_layer.forward(x_tensor)
+    x_tensors = torch.stack([x_tensor,x_tensor])#the input to forard must consist of 3-tensors
+    res_tensor = filter_layer.forward(x_tensors)
 
-
-
-    #All evaluations at done at the level of the support so it is a reasonable place to evaluate performance.
-    dim = 100 #number of nodes of the graph, 5000 takes a few mins
-    t0 = torch.rand(dim,dim)
-    t1 = torch.rand(dim,dim)
-    operator_tuple = (t0,t1)
-    M = MonomialWordSupport(num_variables=2, allowed_degree = 4)
-    M.evaluate_at_operator_tuple(operator_tuple=operator_tuple)
-    #Next we build layers,
-    filter_layer = OperatorFilterLayer(num_features_in = 2, num_features_out = 2, monomial_word_support = M)
 

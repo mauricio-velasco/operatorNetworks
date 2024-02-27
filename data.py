@@ -44,10 +44,10 @@ def dataLab_cycles(num_vertices, not_moving_probabilities_vector, jump_sizes_vec
 
     t0 = ts[0]
     t1 = ts[1]
-    comb_operator = 0.76*t1@t0+0.33*t0@t1
+    comb_operator = 0.76*t1@t0+0.33*t0@t1+0.3*t0@t0@t0
     #pdb.set_trace()
-    input_tensor = torch.Tensor(n_samples,num_vertices,) #We use the convention that the training data sample_index isthe FIRST index    
-    x = input_tensor
+    input_tensor = torch.Tensor(n_samples,num_vertices) #We use the convention that the training data sample_index isthe FIRST index    
+    x = input_tensor.reshape(n_samples,1,num_vertices)
     nn.init.uniform_(input_tensor)
     #We compute the output tensor
     res_tensor = torch.tensordot(comb_operator, input_tensor,dims = ([1],[1]))
@@ -55,7 +55,7 @@ def dataLab_cycles(num_vertices, not_moving_probabilities_vector, jump_sizes_vec
     noise_tensor = torch.Tensor(n_samples,num_vertices)
     nn.init.normal_(noise_tensor,std = noise_stdev)
     output_tensor = res_tensor + noise_tensor
-    y = output_tensor
+    y = output_tensor.reshape(n_samples,1,num_vertices)
     return x,y
 
 
@@ -87,7 +87,6 @@ if __name__ == "__main__":
     M = archit.MonomialWordSupport(num_variables=2, allowed_degree = 3)
     M.evaluate_at_operator_tuple(operator_tuple=operator_tuple)
     filter_layer = archit.OperatorFilterLayer(num_features_in = 1, num_features_out = 1, monomial_word_support = M)        
-    z1 = filter_layer.forward(x[0,:].reshape(1,num_vertices))#First index should be the training sample index
-    z2 = filter_layer.forward(x[-1,:].reshape(1,5))#First index should be the training sample index
+    z1 = filter_layer.forward(x)#First index should be the training sample index
     #ztot = filter_layer.forward(x)#ACHTUNG: automatic summations...
    
