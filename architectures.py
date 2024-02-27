@@ -1,6 +1,7 @@
 import sympy as sp
 import torch
 import torch.nn as nn
+import pdb
 
 class MonomialWordSupport:
     #This class specifies the number of noncommuting variables and the support of 
@@ -87,7 +88,8 @@ class OperatorFilterLayer(nn.Module):
 
     def forward(self,x):
         #By torch conventions matrices are collections of ROWS so we will think of x this way,
-        data_shape = x.shape        
+        data_shape = x.shape 
+        #pdb.set_trace()       
         assert self.monomial_word_support.operator_domain_dim == data_shape[1] and self.num_features_in == data_shape[0], "Evaluation point x must be matrix of size domain_dim x num_features_in"
         M = self.monomial_word_support
         evaluations_tensor = M.monomial_words_forward(x)        
@@ -157,6 +159,7 @@ def forward_layer_test():
     #We create a random tensor to test the output 
     x_tensor = torch.Tensor(2,2) 
     nn.init.uniform_(x_tensor) #the two 2-diml features are the rows of x_tensor
+    #print(x_tensor)
     #We compute the output according to the layer
     y_tensor = filter_layer.forward(x_tensor)
     target_row = y_tensor[1,:]
@@ -203,9 +206,6 @@ if __name__ == "__main__":
     operator_tuple = (t0,t1)
     M = MonomialWordSupport(num_variables=2, allowed_degree = 4)
     M.evaluate_at_operator_tuple(operator_tuple=operator_tuple)
-
     #Next we build layers,
     filter_layer = OperatorFilterLayer(num_features_in = 2, num_features_out = 2, monomial_word_support = M)
 
-for x in t1:
-    print(x.shape)
