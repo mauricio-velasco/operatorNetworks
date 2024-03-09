@@ -110,6 +110,15 @@ class OperatorFilterLayer(nn.Module):
         return torch.stack(answer_list,0)
 
 
+class NeuralReLuOperatorFilterLayer(OperatorFilterLayer):
+
+    def __init__(self, num_features_in,num_features_out, monomial_word_support):        
+        super().__init__(num_features_in,num_features_out, monomial_word_support)
+    def forward(self,x):
+        z = super().forward(x)
+        relu = torch.nn.ReLU()
+        return relu(z)
+
 
 
 #TESTS:
@@ -201,12 +210,21 @@ if __name__ == "__main__":
     x = [[1.0,1.0], [3.0,1.0], [5.0,2.0]] #We will apply the function to the rows of a matrix. 
     x_tensor = torch.Tensor(x)#Flip coordinates
     EvT = M.monomial_words_forward(x_tensor)
-    #Next we build layers,
+    #Next we build layers with and without ReLu, using the monomial support object
+    torch.manual_seed(13)#for comparability
     filter_layer = OperatorFilterLayer(num_features_in = 3, num_features_out = 4, monomial_word_support = M)
-    #Our layer has two input and two output dimensions so
-    x = [[1.0,1.0], [3.0,1.0],[4.0,1.0]] #We will apply the function to the rows of a matrix. 
+    #Our layer has two input and four output dimensions so
+    x = [[1.0,1.0], [3.0,1.0],[-10.0,8.0]]
     x_tensor = torch.Tensor(x) #We think the input is a matrix and we want to evaluate the operator in the
     x_tensors = torch.stack([x_tensor,x_tensor])#the input to forard must consist of 3-tensors
+    x_tensors.shape # Input MUST have three indices, see forward implementation above for explanation
     res_tensor = filter_layer.forward(x_tensors)
-
+    print(res_tensor)
+    res_tensor.shape
+    torch.manual_seed(13)#for comparability
+    #Next we build a neural layer -- our final architectures are simply stacks of those
+    RELu_neural_filter_layer = NeuralReLuOperatorFilterLayer(num_features_in = 3, num_features_out = 4, monomial_word_support = M)
+    neural_res_tensor = RELu_neural_filter_layer.forward(x_tensors)
+    #difference: Should have only nonpositive entries,
+    res_tensor-neural_res_tensor
 
