@@ -2,7 +2,6 @@ import torch
 import torch.optim as optim
 import architectures as archit
 import data as data
-import pdb
 
 
 #1. We specify the experimental parameters. This will take place on 
@@ -37,7 +36,7 @@ M.evaluate_at_operator_tuple(operator_tuple=operator_tuple)
 
 #With the monomial support we can build the basic layer,
 filter_layer = archit.OperatorFilterLayer(num_features_in = 1, num_features_out = 1, monomial_word_support = M)
-filter_layet = archit.NeuralReLuOperatorFilterLayer(num_features_in = 1, num_features_out = 1, monomial_word_support = M)
+filter_layer = archit.NeuralReLuOperatorFilterLayer(num_features_in = 1, num_features_out = 1, monomial_word_support = M)
 epsilon = 0.001 #for the learning rate
 optimizer = optim.SGD(filter_layer.parameters(),lr=epsilon)
 

@@ -4,7 +4,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import pdb
 
 def cycle_operator(num_vertices, not_movingprobability = 0.3, jump_size = 1):
     #Computes the random walk operator on the vertices 0,..,N-1 of an N-cycle
