@@ -19,6 +19,8 @@ We've got all used dependencies in requirements.txt file. So its as easy as use 
 pip install -r requirements.txt 
 ```
 
+5. For performance issues, we've zip the csv data. So we'll need to unzip it.
+
 ## Usage
 
 Some usage example here. 
