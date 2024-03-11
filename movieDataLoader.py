@@ -1,11 +1,16 @@
 #This script loads the movieLens databases and organizes the data in batches and tensors
 #appropriately. It also builds the similarity graphs and their shift operators
 
+from movie_data_process import movie_lens, movie_dataset
+
+# TODO BERNIE: Check this with Mauri.
 def build_operator_tuple(num_vertices):
+    # What should I do with num_vertices? Perhaps we should select this number of movies from orig dataset?
+    return movie_dataset.process_movie_dataset()
     # returns a PAIR of operators (num_vertices x num_vertices matrices)
     # see data.build_operator_tuple for details on expected output
-    pass
     #return t0, t1
+
 
 def get_batch(num_vertices,n_samples):
     """ The structure of the returned training samples xtrain, ytrain is the following:

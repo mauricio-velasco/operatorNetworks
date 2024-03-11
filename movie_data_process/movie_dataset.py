@@ -24,7 +24,9 @@ def get_title_from_mapping(df, mapping_table, index):
 
 
 
-def process_movie_dataset(df, mapping_table):
+def process_movie_dataset(df=pd.read_csv(r"data/movie_dataset.csv"), df_movies=pd.read_csv(r"data/movielens/movie.csv")):
+    clean_movie_title(df_movies)
+    mapping_table = build_mapping_table(df, df_movies)
     # Me quedo con las columnas que me importan y aquellos datos con Nan, los lleno con ''
     features = ['keywords', 'cast', 'genres', 'director']
     for feature in features:
@@ -59,9 +61,8 @@ if __name__ == '__main__':
     df_movies = pd.read_csv(r"data/movielens/movie.csv")
 
     clean_movie_title(df_movies)
-    mapping_table = build_mapping_table(df, df_movies)
-
-    distance_matrix = process_movie_dataset(df, mapping_table)
+    #mapping_table = build_mapping_table(df, df_movies)
+    distance_matrix = process_movie_dataset(df, df_movies)
 
     # Use example
     #movie_user_likes = "Dead Poets Society"
