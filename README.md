@@ -20,3 +20,5 @@ pip install -r requirements.txt
 ```
 
 ## Usage
+
+Some usage example here. 
