@@ -32,7 +32,7 @@ n_samples = 100 #Fix the number of samples we want to extract,
 """ The structure of the training samples is the following:
 (1) x[i,j,k] is a 3-tensor such that x[i,:,:] is a matrix (actually a row_vector) 
 of format  1 x num_vertices containing the score of all num_vertices movies for 
-person i (more precisely x[i,0,j] = rating of movie j for person i)
+person i (more precisely x[i,0,k] = rating of movie k for person i)
 (2) y[i,j] is a matrix (more precisely a column vector) where y[i,:]=y[i,0] is a 
 scalar, the rating given for the STARWARS movie by person i.
 """
@@ -44,11 +44,12 @@ scalar, the rating given for the STARWARS movie by person i.
 num_vertices = 7
 not_moving_probabilities_vector = [0.05,0.05]
 jump_sizes_vector = [1,2]
-xtrain, ytrain = data.dataLab_cycles( num_vertices=num_vertices,
+xtrain, ytrain = data.dataLab_cycles(num_vertices=num_vertices,
                         not_moving_probabilities_vector=not_moving_probabilities_vector,
                         jump_sizes_vector=jump_sizes_vector,
                         noise_stdev = 0.1,
                         n_samples = n_samples)
+# TODO Bernie: Wrapper en un 3-tensor de torch la salida mia. x[i,j,k] i es la los xs
 ytrain = ytrain[:,:,4] #simulating STARWARS index choice
 
 #2. We build the operators
@@ -56,7 +57,8 @@ ytrain = ytrain[:,:,4] #simulating STARWARS index choice
 #ts = moviedata.build_operator_tuple( num_vertices=num_vertices) #returns a pair of operators
 
 #For now overwrite operator definition for downstream testing:
-#TODO:Remove this when the MovieData Loader is ready
+# TODO: Remove this when the MovieData Loader is ready
+# TODO Bernie: encapuslar t0 t1 en un tuple de las dos matrices.
 ts = data.cycle_operator_tuple( num_vertices=num_vertices,
                     not_moving_probabilities_vector=not_moving_probabilities_vector,
                     jump_sizes_vector=jump_sizes_vector)

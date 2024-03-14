@@ -3,7 +3,7 @@
 
 from movie_data_process import movie_lens, movie_dataset
 
-# TODO BERNIE: Check this with Mauri.
+# TODO BERNIE: We should allow num_vertex filtering sorting by importance (top).
 def build_operator_tuple(num_vertices):
     # What should I do with num_vertices? Perhaps we should select this number of movies from orig dataset?
     return movie_dataset.process_movie_dataset()
