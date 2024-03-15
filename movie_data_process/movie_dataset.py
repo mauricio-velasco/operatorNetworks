@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from movie_lens import clean_movie_title, build_mapping_table
+from .movie_lens import clean_movie_title, build_mapping_table, remove_movies_without_rating
 
 
 def combined_features(row):
@@ -56,9 +56,11 @@ def movie_dataset_processing(df, mapping_table):
 if __name__ == '__main__':
     df = pd.read_csv(r"../data/movie_dataset.csv")
     df_movies = pd.read_csv(r"../data/movielens/movie.csv")
+    df_rating = pd.read_csv(r"../data/movielens/rating.csv")
 
     clean_movie_title(df_movies)
     mapping_table = build_mapping_table(df, df_movies)
+    mapping_table = remove_movies_without_rating(mapping_table, df_rating)
 
     distance_matrix = movie_dataset_processing(df, mapping_table)
     print("Finish successfully!")

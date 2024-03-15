@@ -9,10 +9,10 @@ def clean_movie_title(df_movies):
     #return df_movies
 
 def build_mapping_table(df_movie_dataset, df_movies):
-    # Hago el join entre los dos data frames de películas por la columna title de cada uno.
+    # Join two dfs
     universe_movie_table = pd.merge(df_movies, df_movie_dataset, how="inner", on="title")
     # .fillna(0)
-    # Agrego una columna "new_id" autonumerada (dado que id ya existía)
+    # Add new column "new_id" autonumber, as new id.
     universe_movie_table['new_id'] = range(0, len(universe_movie_table))
 
     filt_columns = ["new_id", "title", "movieId", "index"]
@@ -48,6 +48,12 @@ def movie_lens_processing(df_rating, mapping_index_movie_table):
 
     return sim_matrix_df, matrix_ratings, user_matrix_rating
 
+def remove_movies_without_rating(df_movies, df_ratings):
+    #movies_without_rating = df_movies[~df_movies['movieId'].isin(df_ratings['movieId'])]
+    return df_movies[df_movies['movieId'].isin(df_ratings['movieId'])]
+
+
+
 
 if __name__ == '__main__':
     df_movie_dataset = pd.read_csv(r"../data/movie_dataset.csv")
@@ -56,7 +62,10 @@ if __name__ == '__main__':
 
     clean_movie_title(df_movies)
     mapping_index_movie_table = build_mapping_table(df_movie_dataset, df_movies)
+    mapping_index_movie_table = remove_movies_without_rating(mapping_index_movie_table, df_rating)
+
     sim_matrix, matrix_ratings, user_matrix_rating = movie_lens_processing(df_rating, mapping_index_movie_table)
+    print("Finish processing!")
 
 
 

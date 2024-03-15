@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
-from movie_dataset import movie_dataset_processing
-from movie_lens import movie_lens_processing, clean_movie_title, build_mapping_table
+from .movie_dataset import movie_dataset_processing
+from .movie_lens import movie_lens_processing, clean_movie_title, build_mapping_table, remove_movies_without_rating
 
 
 def convertToTensors(user_matrix_rating):
@@ -30,13 +30,17 @@ def preprocess():
 
     clean_movie_title(df_movies)
     mapping_table = build_mapping_table(df_movie_dataset, df_movies)
+    mapping_table = remove_movies_without_rating(mapping_table, df_rating)
 
     movie_dataset_distance_matrix = movie_dataset_processing(df_movie_dataset, mapping_table)
     sim_matrix, matrix_ratings, user_matrix_rating = movie_lens_processing(df_rating, mapping_table)
+
     tensor_user_movie_rating = convertToTensors(user_matrix_rating)
     tensor_distances = convertToTensorFromCombinedDataframes(movie_dataset_distance_matrix, sim_matrix)
-    return movie_dataset_distance_matrix, sim_matrix, matrix_ratings, tensor_user_movie_rating
+    #return movie_dataset_distance_matrix, sim_matrix, matrix_ratings, tensor_user_movie_rating
+    return tensor_distances, tensor_user_movie_rating
 
 
 if __name__ == "__main__":
     preprocess()
+    print("Finish!")

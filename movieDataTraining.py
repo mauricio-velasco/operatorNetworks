@@ -28,7 +28,7 @@ allowed_degree = 3
 
 #1. We build the data training pairs
 # 1.1 Call script for data.
-movie_dataset_distance_matrix, sim_matrix, matrix_ratings, tensor_user_matrix = main_movie_preprocess.preprocess()
+tensor_operators, tensor_user_matrix = main_movie_preprocess.preprocess()
 
 #Next we construct the training data,
 n_samples = 100 #Fix the number of samples we want to extract,
@@ -40,11 +40,11 @@ person i (more precisely x[i,0,k] = rating of movie k for person i)
 scalar, the rating given for the j movie by person i.
 """
 #xtrain, ytrain = moviedata.get_batch( num_vertices=num_vertices,n_samples = n_samples)
-#TODO: plan validation split and cross-validation 
+#TODO: plan validation split and cross-validation
 
 #Overwrite data construction for downstream testing
 #TODO:Remove this when the MovieData Loader is ready
-num_vertices = 7
+num_vertices = 3370
 not_moving_probabilities_vector = [0.05,0.05]
 jump_sizes_vector = [1,2]
 xtrain, ytrain = data.dataLab_cycles(num_vertices=num_vertices,
@@ -52,7 +52,7 @@ xtrain, ytrain = data.dataLab_cycles(num_vertices=num_vertices,
                         jump_sizes_vector=jump_sizes_vector,
                         noise_stdev = 0.1,
                         n_samples = n_samples)
-# TODO Bernie: Wrapper en un 3-tensor de torch la salida mia. x[i,j,k] i es la los xs  [tensor_user_matrix]
+# TODO Bernie: Wrapper en un 3-tensor de torch la salida mia. x[i,j,k] -> [tensor_user_matrix]
 ytrain = ytrain[:,:,4] #simulating STARWARS index choice
 
 #2. We build the operators
@@ -61,11 +61,12 @@ ytrain = ytrain[:,:,4] #simulating STARWARS index choice
 
 #For now overwrite operator definition for downstream testing:
 # TODO: Remove this when the MovieData Loader is ready
-# TODO Bernie: encapuslar t0 t1 en un tuple de las dos matrices.
-ts = data.cycle_operator_tuple( num_vertices=num_vertices,
+# TODO Bernie: encapuslar t0 t1 en un tuple de las dos matrices. -> [tensor_operators]
+ts = data.cycle_operator_tuple(num_vertices=num_vertices,
                     not_moving_probabilities_vector=not_moving_probabilities_vector,
                     jump_sizes_vector=jump_sizes_vector)
-operator_tuple = ts
+#operator_tuple = ts
+operator_tuple = tensor_operators
 
 #3. We build the noncommuting products of our operators using the MonomialWordSupport object
 M = archit.MonomialWordSupport(num_variables = 2, allowed_degree = allowed_degree)
