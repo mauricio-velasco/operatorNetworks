@@ -23,13 +23,9 @@ def build_mapping_table(df_movie_dataset, df_movies):
 
 def movie_lens_processing(df_rating, mapping_index_movie_table):
     # Clean column title, removing year (it comes by default concatenated to title)
-    #clean_movie_title(df_movies)
-    #mapping_index_movie_table = build_mapping_table(df_movie_dataset, df_movies)
 
-    filt_df_ratings = pd.merge(df_rating, mapping_index_movie_table, on="movieId")[
-        ["userId", "movieId", "rating"]].drop_duplicates()
-
-    filt_df_ratings_with_id = pd.merge(filt_df_ratings, mapping_index_movie_table, on="movieId")
+    filt_df_ratings_with_id = pd.merge(df_rating, mapping_index_movie_table, on="movieId")[
+        ["userId", "new_id", "rating"]].drop_duplicates()
 
     # Every value corresponding to the user not watching the movie is 0.
     # Each row is a movie. Each column is a user. Intersection is rating.
