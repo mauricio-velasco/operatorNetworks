@@ -24,9 +24,7 @@ def get_title_from_mapping(df, mapping_table, index):
 
 
 
-def movie_dataset_processing(df=pd.read_csv(r"../data/movie_dataset.csv"), df_movies=pd.read_csv(r"../data/movielens/movie.csv")):
-    clean_movie_title(df_movies)
-    mapping_table = build_mapping_table(df, df_movies)
+def movie_dataset_processing(df, mapping_table):
     # Filter the interesting columns, rest filled with ''
     features = ['keywords', 'cast', 'genres', 'director']
     for feature in features:
@@ -49,6 +47,9 @@ def movie_dataset_processing(df=pd.read_csv(r"../data/movie_dataset.csv"), df_mo
     ixs = df.index
     cosine_sim_df = pd.DataFrame(cosine_sim, index=ixs, columns=ixs)
 
+    # Sort by index in rows and columns
+    cosine_sim_df = cosine_sim_df.sort_index().sort_index(axis=1)
+
     return cosine_sim_df
 
 
@@ -56,5 +57,8 @@ if __name__ == '__main__':
     df = pd.read_csv(r"../data/movie_dataset.csv")
     df_movies = pd.read_csv(r"../data/movielens/movie.csv")
 
-    distance_matrix = movie_dataset_processing(df, df_movies)
+    clean_movie_title(df_movies)
+    mapping_table = build_mapping_table(df, df_movies)
+
+    distance_matrix = movie_dataset_processing(df, mapping_table)
     print("Finish successfully!")

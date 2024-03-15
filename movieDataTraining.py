@@ -5,6 +5,7 @@ import architectures as archit
 import movieDataLoader as moviedata
 import data as data
 import pdb
+from movie_data_process import main_movie_preprocess
 
 class simpleMovieRecommendationNet(nn.Module):
     def __init__(self, monomial_word_support, stw_index):        
@@ -26,6 +27,8 @@ num_vertices = 500 #This example uses the 500
 allowed_degree = 3
 
 #1. We build the data training pairs
+# 1.1 Call script for data.
+movie_dataset_distance_matrix, sim_matrix, matrix_ratings, tensor_user_matrix = main_movie_preprocess.preprocess()
 
 #Next we construct the training data,
 n_samples = 100 #Fix the number of samples we want to extract,
@@ -34,7 +37,7 @@ n_samples = 100 #Fix the number of samples we want to extract,
 of format  1 x num_vertices containing the score of all num_vertices movies for 
 person i (more precisely x[i,0,k] = rating of movie k for person i)
 (2) y[i,j] is a matrix (more precisely a column vector) where y[i,:]=y[i,0] is a 
-scalar, the rating given for the STARWARS movie by person i.
+scalar, the rating given for the j movie by person i.
 """
 #xtrain, ytrain = moviedata.get_batch( num_vertices=num_vertices,n_samples = n_samples)
 #TODO: plan validation split and cross-validation 
@@ -49,12 +52,12 @@ xtrain, ytrain = data.dataLab_cycles(num_vertices=num_vertices,
                         jump_sizes_vector=jump_sizes_vector,
                         noise_stdev = 0.1,
                         n_samples = n_samples)
-# TODO Bernie: Wrapper en un 3-tensor de torch la salida mia. x[i,j,k] i es la los xs
+# TODO Bernie: Wrapper en un 3-tensor de torch la salida mia. x[i,j,k] i es la los xs  [tensor_user_matrix]
 ytrain = ytrain[:,:,4] #simulating STARWARS index choice
 
 #2. We build the operators
 #assert num_vertices in [500,1000] #Allowed range for the vertices
-#ts = moviedata.build_operator_tuple( num_vertices=num_vertices) #returns a pair of operators
+#ts = moviedata.build_operator_tuple(num_vertices=num_vertices) #returns a pair of operators
 
 #For now overwrite operator definition for downstream testing:
 # TODO: Remove this when the MovieData Loader is ready
