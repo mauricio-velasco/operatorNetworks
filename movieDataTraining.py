@@ -28,7 +28,9 @@ allowed_degree = 3
 
 #1. We build the data training pairs
 # 1.1 Call script for data.
-tensor_operators, tensor_user_matrix = main_movie_preprocess.preprocess()
+ubound_popular_movies = 100
+ubound_popular_users = 1000
+tensor_operators, tensor_user_matrix = main_movie_preprocess.preprocess(ubound_popular_movies, ubound_popular_users)
 
 #Next we construct the training data,
 n_samples = 100 #Fix the number of samples we want to extract,

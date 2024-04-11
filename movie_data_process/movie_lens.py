@@ -2,6 +2,7 @@ import pandas as pd
 import sklearn
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+import pdb
 
 def clean_movie_title(df_movies):
     # Limpio la columna title, quitando el año (que viene por defecto en todos los titles)
@@ -14,7 +15,6 @@ def build_mapping_table(df_movie_dataset, df_movies):
     # .fillna(0)
     # Add new column "new_id" autonumber, as new id.
     universe_movie_table['new_id'] = range(0, len(universe_movie_table))
-
     filt_columns = ["new_id", "title", "movieId", "index"]
     mapping_index_movie_table = universe_movie_table[filt_columns]
 
@@ -23,10 +23,8 @@ def build_mapping_table(df_movie_dataset, df_movies):
 
 def movie_lens_processing(df_rating, mapping_index_movie_table):
     # Clean column title, removing year (it comes by default concatenated to title)
-
-    filt_df_ratings_with_id = pd.merge(df_rating, mapping_index_movie_table, on="movieId")[
-        ["userId", "new_id", "rating"]].drop_duplicates()
-
+    filt_df_ratings_with_id = pd.merge(df_rating, mapping_index_movie_table, on="movieId")[["userId", "new_id", "rating"]].drop_duplicates()
+    
     # Every value corresponding to the user not watching the movie is 0.
     # Each row is a movie. Each column is a user. Intersection is rating.
     matrix_ratings = filt_df_ratings_with_id.pivot(index='new_id', columns='userId', values='rating').fillna(0)

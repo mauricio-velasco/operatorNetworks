@@ -1,8 +1,8 @@
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from .movie_lens import clean_movie_title, build_mapping_table, remove_movies_without_rating
-
+from movie_lens import clean_movie_title, build_mapping_table, remove_movies_without_rating
+import pdb
 
 def combined_features(row):
     return row['keywords']+" "+row['cast']+" "+row['genres']+" "+row['director']
