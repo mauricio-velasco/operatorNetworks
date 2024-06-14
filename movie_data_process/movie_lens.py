@@ -54,10 +54,11 @@ def remove_movies_without_rating(df_movies, df_ratings):
 
 
 if __name__ == '__main__':
-    df_movie_dataset = pd.read_csv(r"../data/movie_dataset.csv")
-    df_movies = pd.read_csv(r"../data/movielens/movie.csv")
-    df_rating = pd.read_csv(r"../data/movielens/rating.csv")
+    df_movie_dataset = pd.read_csv(r"./data/movie_dataset.csv")
+    df_movies = pd.read_csv(r"./data/movielens/movie.csv")
+    df_rating = pd.read_csv(r"./data/movielens/rating.csv")
 
+    pdb.set_trace()
     clean_movie_title(df_movies)
     mapping_index_movie_table = build_mapping_table(df_movie_dataset, df_movies)
     mapping_index_movie_table = remove_movies_without_rating(mapping_index_movie_table, df_rating)

@@ -71,5 +71,6 @@ if __name__ == "__main__":
     print(os.chdir(absolute_path)) #Now we are inside the /movie_data_process dir
     ubound_popular_movies = 100
     ubound_popular_users = 1000
-    preprocess(ubound_popular_movies,ubound_popular_users)
-    print("Finish!")
+    tensor_distances, tensor_user_movie_rating = preprocess(ubound_popular_movies,ubound_popular_users)
+    pdb.set_trace()
+    print("Done!")
