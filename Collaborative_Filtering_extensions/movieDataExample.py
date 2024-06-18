@@ -16,7 +16,9 @@ def select_movies_and_users_w_most_data(ubound_popular_movies, ubound_popular_us
     users_ranked = df_interactions.userId.value_counts()
     top_users_ranked = users_ranked.nlargest(ubound_popular_users)
     
+    pdb.set_trace()
     movies_ranked = df_interactions.movieId.value_counts()
+    
     top_movies_ranked = movies_ranked.nlargest(ubound_popular_movies)
 
     #Then we select the ratings given by power users to power movies
@@ -26,6 +28,7 @@ def select_movies_and_users_w_most_data(ubound_popular_movies, ubound_popular_us
 
     #And finally return the databases for our restricted universe,
     return df_movies, df_interactions
+
 
 
 
@@ -45,6 +48,7 @@ def raw_data_loader(ubound_popular_movies,ubound_popular_users):
     df_movies, df_interactions = select_movies_and_users_w_most_data(ubound_popular_movies, ubound_popular_users,  df_movies, df_interactions)
     return df_movies, df_interactions
     
+
 
 
 

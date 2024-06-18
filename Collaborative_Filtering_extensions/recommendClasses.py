@@ -5,6 +5,8 @@ import pdb
 from operator import itemgetter
 import matplotlib.pyplot as plt
 import seaborn as sns
+import math
+import random
 
 class RecommendationSystem:
     #This class holds the data for a recommendation system.
@@ -13,24 +15,23 @@ class RecommendationSystem:
     # and places the interaction data by users in
     #       self.interactions_dict_by_user 
         
-    def __init__(self,pandas_df_interactions, user_column_name, item_column_name,rating_column_name,rating_lower_bound, rating_upper_bound):
-        self.pandas_df_interactions = pandas_df_interactions
-        self.userIndicesInDB = []
-        self.itemIndicesInDB = []
- 
-        df_interactions = self.pandas_df_interactions #shortening for nicer pandas code below
-        #We extract the vectors of indices of users and items IN THE ORIGINAL DB. We will use these indices throughout        
-        userIds_np_array = df_interactions[user_column_name].unique()
-        self.userIdxs = userIds_np_array.tolist()#in the original DB
-        itemIds_np_array = df_interactions[item_column_name].unique()
-        self.itemIdxs = itemIds_np_array.tolist()#in the original DB
+    def __init__(self, data_core):        
+        #We begin by copying basic info from the data_core class which indexes the data
+        self.userIdxs = data_core.userIdxs
+        self.itemIdxs = data_core.itemIdxs
+        self.df_interactions = data_core.df_interactions
+        self.df_items = data_core.df_items
+        user_column_name = data_core.user_column_name
+        item_column_name = data_core.item_column_name
+        rating_column_name = data_core.rating_column_name
 
-        #Finally updates the counts of users and items
+        #updates the counts of users and items
         self.num_users = len(self.userIdxs)
         self.num_items = len(self.itemIdxs)
-
+        
         #Finally the data is organized in a dict of dicts to preserve sparcity
         # is called: self. interactions_dict_by_user
+        df_interactions = self.df_interactions
         self.interactions_dict_by_user = dict()
         for user_idx in self.userIdxs:
             reviewed_items_df = df_interactions[df_interactions[user_column_name]==user_idx]
@@ -39,27 +40,19 @@ class RecommendationSystem:
             reviewed_items_df = reviewed_items_df.set_index(item_column_name)
             new_dict_entry = reviewed_items_df.to_dict()
             new_dict_entry = new_dict_entry[rating_column_name]
-            assert all([rating_lower_bound<= j for j in new_dict_entry.values()]), "values below allowed lower bound"
-            assert all([j<= rating_upper_bound for j in new_dict_entry.values()]), "values above allowed upper bound"
             assert set(new_dict_entry.keys()) <= set(self.itemIdxs), "Records improperly read, every rating must correspond to a known index"
             self.interactions_dict_by_user[user_idx] = new_dict_entry.copy()
+
+        self.compute_user_recentered_data()
         #TODO: build self.interactions_dict_by_item
-
-
-    def user_idx_from_DB_user_id(self, DB_userId):
-        #given a DATABASE user id compute the corresponding user_Idx
-        return self.DB_userIds_list.index(DB_userId)
-
-    def item_idx_from_DB_item_id(self, DB_itemId):
-        #given a DATABASE user id compute the corresponding user_Idx
-        return self.DB_itemIds_list.index(DB_itemId)
-
 
     def items_and_ratings_by_single_user(self, user_idx, recentered):
         #Returns the item_idx's list of items that have been rated by user_idx
         #Returns a dictionary with keys: item_idxs and values the ratings.
         if recentered == False:
             return self.interactions_dict_by_user[user_idx]
+        if recentered == True:
+            return self.recentered_interactions_dict_by_user[user_idx]
 
     def items_rated_by_pair_of_users(self, user_idx_pair):
         u = user_idx_pair[0]
@@ -68,33 +61,26 @@ class RecommendationSystem:
         rated_items_set_v = set(self.interactions_dict_by_user[v].keys())
         return rated_items_set_u & rated_items_set_v
 
-    def items_rated_by_all_in_list_of_users(self, list_user_idx):
-        itemSets_list = [] 
-        for user_idx in list_user_idx:       
-            rated_items_set = set(self.interactions_dict_by_user[user_idx].keys())
-            itemSets_list.append(rated_items_set)    
-        return set.intersection(*itemSets_list)
-
-    def compute_user_mean(self):
-        #Sparse computation of all user means
+    def compute_user_means(self):
+        #Sparse computation of all user mean ratings
         res = []
         for user_idx in self.userIdxs:
-            rated_items_dict = self.items_rated_by(user_idx, recentered=False)
-            res.append(np.mean(rated_items_dict.values))
-        self.userMeans = res
+            rated_items_dict = self.items_and_ratings_by_single_user(user_idx, recentered=False)
+            res.append(np.array(list(rated_items_dict.values())).mean())
+        self.userMeans = dict(zip(self.userIdxs, res))
 
     def compute_user_recentered_data(self):
         #Create the new dictionary user_recentered_data 
         #containing dictionaries with sparse RECENTERED data
-        self.compute_user_mean()
-        self.user_recentered_data = dict()
+        self.compute_user_means()
+        self.recentered_interactions_dict_by_user = dict()
         for user_idx in self.userIdxs:
-            rated_items_dict = self.items_rated_by(user_idx, recentered=False)
+            rated_items_dict = self.items_and_ratings_by_single_user(user_idx, recentered=False)
             mean_rating = self.userMeans[user_idx]
             centered_rated_items_dict = dict()
             for key, value in rated_items_dict.items():
                 centered_rated_items_dict[key] = rated_items_dict[key]-mean_rating
-            self.user_recentered_data[user_idx] = centered_rated_items_dict.copy()
+            self.recentered_interactions_dict_by_user[user_idx] = centered_rated_items_dict.copy()
 
     def compute_Sigma_and_B_users_matrices(self):
         #Computes the sparse correlation matrix correctly
@@ -117,7 +103,8 @@ class RecommendationSystem:
                     self.Sigma_users_matrix[id_u,id_v] = np.vdot(ratings_u_centered,ratings_v_centered)
                     sigma_u = np.sqrt(np.vdot(ratings_u_centered,ratings_u_centered))
                     sigma_v = np.sqrt(np.vdot(ratings_v_centered,ratings_v_centered))
-                    self.B_users_matrix[id_u,id_v] = self.Sigma_users_matrix[id_u,id_v]/(sigma_u*sigma_v)
+                    if sigma_u*sigma_v != 0.0:
+                        self.B_users_matrix[id_u,id_v] = self.Sigma_users_matrix[id_u,id_v]/(sigma_u*sigma_v)
 
         #Finally we subtract the identity
         for i in range(self.num_users):
@@ -142,6 +129,112 @@ class RecommendationSystem:
         shift_operator_users_matrix = shift_operator_users_matrix / row_sums[:, np.newaxis]
         self.shift_operator_users_matrix = shift_operator_users_matrix
 
+    def produce_input_output_pair(self, itemIdxs_input_list, itemIdxs_output_list):
+        #Given the itemIdxs (in the original DB) of items of interests it
+        #Returns three matrices constituting a single desired input-output pair. The task of the network is to predict 
+        #centered ratings in all users given a small collection of centered user ratings. On CENTERED data the missing 
+        #data is encoded with zeroes. We build the data set of input output pairs by varying the input/output lists 
+        #(which are often, but not necessarily equal)
+        
+        #The three matrices are:
+        #1. Input Filled centered ratings for the given Items, of format numUsers x len(itemIdxs_input_list) 
+        #2. Output Filled centered ratings for the given Items, of format numUsers x len(itemIdxs_output_list) 
+        #3. Locations of entries with actual data for the second matrix, necessary for knowing which entries yield actual info
+        #We allow distinct input and output movies trying to leverage known ratings of similar movies.
+        
+        nU = self.num_users
+        nInput = len(itemIdxs_input_list)
+        #Input first:
+        X = np.zeros(nU,nInput)
+        for id_u, userIdx in enumerate(self.userIdxs):
+            recentered_ratings_u = self.recentered_interactions_dict_by_user[userIdx]
+            for id_item, itemIdx in enumerate(itemIdxs_input_list):
+                if itemIdx in recentered_ratings_u:
+                    X[id_u,id_item] = recentered_ratings_u[itemIdx]
+                
+        #Output:
+        nOutput = len(itemIdxs_output_list)
+        Y = np.zeros(nU,nOutput)
+        Z = np.zeros(nU,nOutput, dtype=bool)
+        for id_u, userIdx in enumerate(self.userIdxs):
+            recentered_ratings_u = self.recentered_interactions_dict_by_user[userIdx]
+            for id_item, itemIdx in enumerate(itemIdxs_output_list):
+                if itemIdx in recentered_ratings_u:
+                    Y[id_u,id_item] = recentered_ratings_u[itemIdx]
+                    Z[id_u,id_item] = True
+
+        return X, Y, Z
+
+
+
+class DataCoreClass:
+    def __init__(self, df_items, df_interactions, user_column_name, item_column_name, rating_column_name,rating_lower_bound, rating_upper_bound) -> None:
+        self.df_items = df_movies
+        self.df_interactions = df_interactions
+        self.user_column_name = user_column_name
+        self.item_column_name = item_column_name
+        self.rating_column_name = rating_column_name
+        self.rating_lower_bound = rating_lower_bound
+        self.rating_upper_bound = rating_upper_bound
+    
+        df_interactions = self.df_interactions #shortening for nicer pandas code below
+        #We extract the vectors of indices of users and items IN THE ORIGINAL DB. We will use these indices throughout        
+        userIds_np_array = df_interactions[user_column_name].unique()
+        self.userIdxs = userIds_np_array.tolist()#in the original DB, these will not be changed
+        itemIds_np_array = df_interactions[item_column_name].unique()
+        self.itemIdxs = itemIds_np_array.tolist()#in the original DB, these will not be changed
+        #Test claimed ranges hold
+        assert (df_interactions[rating_column_name] <= rating_upper_bound).all()
+        assert (df_interactions[rating_column_name] >= rating_lower_bound).all()
+
+    def train_test_split_datacores(self, percentage_of_data_for_training):
+        #Returns two datacores one for training and one for testing,
+        assert percentage_of_data_for_training >= 0.0
+        assert percentage_of_data_for_training <= 1.0
+        df_interactions = self.df_interactions
+        item_column_name = self.item_column_name
+        training_row_indices = []
+        testing_row_indices = []
+
+        for itemIdx in self.itemIdxs:
+            item_info_indices = df_interactions[df_interactions[item_column_name]==itemIdx].index
+            item_info_indices = set(item_info_indices.to_list())
+            #We split randlomly according to percent
+            l = len(item_info_indices)
+            training_size = math.ceil(percentage_of_data_for_training*l)
+            training_items =  set(random.sample(item_info_indices, training_size))
+            testing_items = item_info_indices-training_items
+            training_row_indices += list(training_items)
+            testing_row_indices += list(testing_items)
+
+        df_interactions_train = df_interactions.loc[training_row_indices]
+        df_interactions_test = df_interactions.loc[testing_row_indices]
+
+        DC_train = DataCoreClass(
+            df_items = self.df_items,
+            df_interactions= df_interactions_train,
+            user_column_name = self.user_column_name, 
+            item_column_name = self.item_column_name,
+            rating_column_name = self.rating_column_name,
+            rating_lower_bound = self.rating_lower_bound,
+            rating_upper_bound = self.rating_upper_bound
+        )
+        DC_train.userIdxs = self.userIdxs
+        DC_train.itemIdxs = self.itemIdxs
+
+        DC_test = DataCoreClass(
+            df_items = self.df_items,
+            df_interactions= df_interactions_test,
+            user_column_name = self.user_column_name, 
+            item_column_name = self.item_column_name,
+            rating_column_name = self.rating_column_name,
+            rating_lower_bound = self.rating_lower_bound,
+            rating_upper_bound = self.rating_upper_bound
+        )
+        DC_test.userIdxs = self.userIdxs
+        DC_test.itemIdxs = self.itemIdxs
+
+        return DC_train, DC_test
 
 
 
@@ -150,25 +243,38 @@ if __name__ == "__main__":
     import os
     absolute_path = os.path.dirname(os.path.abspath(__file__))
     print(os.chdir(absolute_path)) #Now we are inside the /movie_data_process dir
-    df_movies, df_interactions = raw_data_loader(ubound_popular_movies=200, ubound_popular_users=50)
 
-    #We have to construct an instance of the recommender class
-    RS = RecommendationSystem(
-        pandas_df_interactions = df_interactions, 
+    df_movies, df_interactions = raw_data_loader(ubound_popular_movies=200, ubound_popular_users=100)
+    DC = DataCoreClass(
+        df_items = df_movies,
+        df_interactions= df_interactions,
         user_column_name = "userId", 
         item_column_name = "movieId",
         rating_column_name = "rating",
         rating_lower_bound = 0.0,
         rating_upper_bound = 5.0
-        )
-    RS.compute_Sigma_and_B_users_matrices()
-    RS.compute_shift_operator_users(15)
+    )
+    pdb.set_trace()
+    #Next we split the data
+    DC_train, DC_test = DC.train_test_split_datacores(percentage_of_data_for_training = 0.8)
 
-    ax = sns.heatmap(RS.B_users_matrix, linewidth=0.5)
+    RS = RecommendationSystem(data_core = DC_train)
+    RS.compute_Sigma_and_B_users_matrices()
+    RS.compute_shift_operator_users(k_most_correlated = 15)
+    shift_operator_1 = RS.shift_operator_users_matrix
+
+    RS2 = RecommendationSystem(data_core = DC_train)
+    RS2.compute_Sigma_and_B_users_matrices()
+    RS2.compute_shift_operator_users(30)
+    shift_operator_2 = RS2.shift_operator_users_matrix
+
+    print(np.linalg.norm(shift_operator_2-shift_operator_1))
+    pdb.set_trace()
+    ax = sns.heatmap(RS2.B_users_matrix, linewidth=0.5)
     plt.show()
-    ax = sns.heatmap(RS.shift_operator_users_matrix, linewidth=0.5)
+    ax = sns.heatmap(RS.B_users_matrix, linewidth=0.5)
     plt.show()
 
     print("Done!")
-
-
+    P_movies_idx = [296, 356, 318, 593, 480, 260, 110, 589, 2571, 527, 1, 457, 150,780, 50,1210 ,592,1196, 2858,32]
+    movie_catalog = df_movies[df_movies.movieId.isin(P_movies_idx)]
