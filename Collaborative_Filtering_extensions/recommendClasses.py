@@ -1,5 +1,6 @@
+import torch
 import numpy as np
-from movieDataExample import raw_data_loader
+#from movieDataExample import raw_data_loader
 import pandas as pd
 import pdb
 from operator import itemgetter
@@ -118,7 +119,8 @@ class RecommendationSystem:
         assert hasattr(self, "B_users_matrix"), "The correlation matrix must be computed first"
         B = self.B_users_matrix
         nU = self.num_users
-        shift_operator_users_matrix = np.zeros([nU,nU])
+        
+        shift_operator_users_matrix = torch.zeros([nU,nU])
         #Ma
         Large_Correlation_indices = np.argpartition(B,-k_most_correlated,axis=1)[:,-k_most_correlated:]
         #We keep only the large correlations
@@ -137,39 +139,47 @@ class RecommendationSystem:
         #(which are often, but not necessarily equal)
         
         #The three matrices are:
-        #1. Input Filled centered ratings for the given Items, of format numUsers x len(itemIdxs_input_list) 
-        #2. Output Filled centered ratings for the given Items, of format numUsers x len(itemIdxs_output_list) 
-        #3. Locations of entries with actual data for the second matrix, necessary for knowing which entries yield actual info
+        #1. Input Filled centered ratings for the given Items, of format len(itemIdxs_input_list) x numUsers
+        #2. Output Filled centered ratings for the given Items, of format len(itemIdxs_output_list) x numUsers 
+        #3. Locations of entries with actual data for the second matrix, necessary for knowing which entries yield 
+        #   actual info, it also has format len(itemIdxs_output_list) x numUsers
         #We allow distinct input and output movies trying to leverage known ratings of similar movies.
         
         nU = self.num_users
         nInput = len(itemIdxs_input_list)
         #Input first:
-        X = np.zeros(nU,nInput)
+        X = np.zeros([nInput,nU])
         for id_u, userIdx in enumerate(self.userIdxs):
             recentered_ratings_u = self.recentered_interactions_dict_by_user[userIdx]
             for id_item, itemIdx in enumerate(itemIdxs_input_list):
                 if itemIdx in recentered_ratings_u:
-                    X[id_u,id_item] = recentered_ratings_u[itemIdx]
+                    X[id_item,id_u] = recentered_ratings_u[itemIdx]
                 
         #Output:
         nOutput = len(itemIdxs_output_list)
-        Y = np.zeros(nU,nOutput)
-        Z = np.zeros(nU,nOutput, dtype=bool)
+        Y = np.zeros([nOutput,nU])
+        Z = np.zeros([nOutput,nU], dtype=bool)
         for id_u, userIdx in enumerate(self.userIdxs):
             recentered_ratings_u = self.recentered_interactions_dict_by_user[userIdx]
             for id_item, itemIdx in enumerate(itemIdxs_output_list):
                 if itemIdx in recentered_ratings_u:
-                    Y[id_u,id_item] = recentered_ratings_u[itemIdx]
-                    Z[id_u,id_item] = True
+                    Y[id_item,id_u] = recentered_ratings_u[itemIdx]
+                    Z[id_item,id_u] = True
 
         return X, Y, Z
 
-
+    def produce_input_output_pair_tensors(self, itemIdxs_input_list, itemIdxs_output_list):
+        #Returns data in the pytorch format of 3-tensors
+        #compatible with our operator networks implementation with ONE input feature
+        X,Y,Z = self.produce_input_output_pair(itemIdxs_input_list, itemIdxs_output_list)        
+        X = torch.Tensor(X).unsqueeze(1)
+        Y = torch.Tensor(Y).unsqueeze(1)
+        Z = torch.Tensor(Z).unsqueeze(1)
+        return X,Y,Z
 
 class DataCoreClass:
     def __init__(self, df_items, df_interactions, user_column_name, item_column_name, rating_column_name,rating_lower_bound, rating_upper_bound) -> None:
-        self.df_items = df_movies
+        self.df_items = df_items
         self.df_interactions = df_interactions
         self.user_column_name = user_column_name
         self.item_column_name = item_column_name
@@ -210,6 +220,7 @@ class DataCoreClass:
         df_interactions_train = df_interactions.loc[training_row_indices]
         df_interactions_test = df_interactions.loc[testing_row_indices]
 
+        #TODO: The overwriting below is awful!! Must be fixed since it can cause errors
         DC_train = DataCoreClass(
             df_items = self.df_items,
             df_interactions= df_interactions_train,
@@ -254,7 +265,6 @@ if __name__ == "__main__":
         rating_lower_bound = 0.0,
         rating_upper_bound = 5.0
     )
-    pdb.set_trace()
     #Next we split the data
     DC_train, DC_test = DC.train_test_split_datacores(percentage_of_data_for_training = 0.8)
 
@@ -262,6 +272,10 @@ if __name__ == "__main__":
     RS.compute_Sigma_and_B_users_matrices()
     RS.compute_shift_operator_users(k_most_correlated = 15)
     shift_operator_1 = RS.shift_operator_users_matrix
+    X,Y,Z = RS.produce_input_output_pair(itemIdxs_input_list=[296, 356, 318], itemIdxs_output_list=[296, 356, 318])
+    ax = sns.heatmap(X, linewidth=0.5)
+    plt.show()
+    pdb.set_trace()
 
     RS2 = RecommendationSystem(data_core = DC_train)
     RS2.compute_Sigma_and_B_users_matrices()

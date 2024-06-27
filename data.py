@@ -1,6 +1,6 @@
 # Functions for generating operators and artificial data from models based 
 # on such graphs
-
+import pdb
 import numpy as np
 import torch
 import torch.nn as nn

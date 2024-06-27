@@ -1,3 +1,4 @@
+import pdb
 import torch 
 import torch.optim as optim
 import architectures as archit
@@ -23,6 +24,7 @@ x, y = data.dataLab_cycles( num_vertices=num_vertices,
                         jump_sizes_vector=jump_sizes_vector,
                         noise_stdev = 0.1,
                         n_samples = n_samples)
+#The x and y in the training data are of shape [100, 1, Num_vertices] because it consists of a 
 
 ts = data.cycle_operator_tuple( num_vertices=num_vertices,
                     not_moving_probabilities_vector=not_moving_probabilities_vector,
@@ -30,9 +32,10 @@ ts = data.cycle_operator_tuple( num_vertices=num_vertices,
 #Having our operators we will define the operator network
 #For that we first need a monomial support object which evaluates noncommutative polyomials
 #In our fixed operators
-operator_tuple = ts
-M = archit.MonomialWordSupport(num_variables=2, allowed_degree = 3)
-M.evaluate_at_operator_tuple(operator_tuple=operator_tuple)
+operator_tuple = ts #The operators are a tuple of tensors of size num_vertices x num_vertices
+pdb.set_trace()
+M = archit.MonomialWordSupport(num_variables=2, allowed_support = 3)
+M.evaluate_at_operator_tuple(operator_tuple = operator_tuple)
 
 #With the monomial support we can build the basic layer,
 filter_layer = archit.OperatorFilterLayer(num_features_in = 1, num_features_out = 1, monomial_word_support = M)

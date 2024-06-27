@@ -16,7 +16,6 @@ def select_movies_and_users_w_most_data(ubound_popular_movies, ubound_popular_us
     users_ranked = df_interactions.userId.value_counts()
     top_users_ranked = users_ranked.nlargest(ubound_popular_users)
     
-    pdb.set_trace()
     movies_ranked = df_interactions.movieId.value_counts()
     
     top_movies_ranked = movies_ranked.nlargest(ubound_popular_movies)
@@ -39,9 +38,9 @@ def raw_data_loader(ubound_popular_movies,ubound_popular_users):
     #df_movie_dataset = pd.read_csv(r"../data/movie_dataset.csv")
     #df_movie_dataset: rows are movies and columns are: index, budget, genres, director,...
 
-    df_movies = pd.read_csv(r"../data/movielens/movie.csv")
+    df_movies = pd.read_csv(r"./data/movielens/movie.csv")
     #df_movies: rows are movies and the columns are movieId, title and genres
-    df_interactions = pd.read_csv(r"../data/movielens/rating.csv")
+    df_interactions = pd.read_csv(r"./data/movielens/rating.csv")
     #df_interactions: rows are (user, item) interactions (i.e. someone watching a movie) 
     #and columns contain userId movieId and given ratings together with a timestamp
     clean_movie_title(df_movies)
