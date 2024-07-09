@@ -33,7 +33,6 @@ ts = data.cycle_operator_tuple( num_vertices=num_vertices,
 #For that we first need a monomial support object which evaluates noncommutative polyomials
 #In our fixed operators
 operator_tuple = ts #The operators are a tuple of tensors of size num_vertices x num_vertices
-pdb.set_trace()
 M = archit.MonomialWordSupport(num_variables=2, allowed_support = 3)
 M.evaluate_at_operator_tuple(operator_tuple = operator_tuple)
 

@@ -143,6 +143,7 @@ class MonomialWordSupport:
         for row_vector in x:
             TN = torch.stack([torch.mv(op, row_vector) for op in self.operator_evaluated_monomial_words ])
             result.append(torch.transpose(TN,1,0))
+
         return torch.stack(result)
 
     def num_monomial_words(self):
@@ -185,7 +186,7 @@ class OperatorFilterLayer(nn.Module):
         answer_list = []
         for index in range(data_shape[0]):
             curr_data_point = x[index,:,:]
-            evaluations_tensor = M.monomial_words_forward(curr_data_point)        
+            evaluations_tensor = M.monomial_words_forward(curr_data_point)
             coefficients_tensor = self.coefficient_tensor
             #The following contraction defines the filter...
             res = torch.tensordot( coefficients_tensor, evaluations_tensor,dims = ([1,2],[0,2]))

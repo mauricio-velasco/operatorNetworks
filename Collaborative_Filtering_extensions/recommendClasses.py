@@ -117,19 +117,23 @@ class RecommendationSystem:
         #right stochastic (rows summing to one)
         assert self.num_users >= k_most_correlated, "The number of users must exceed the sparsification threshold index k"
         assert hasattr(self, "B_users_matrix"), "The correlation matrix must be computed first"
+        
         B = self.B_users_matrix
         nU = self.num_users
         
         shift_operator_users_matrix = torch.zeros([nU,nU])
-        #Ma
+        #Selects the largest entries?
         Large_Correlation_indices = np.argpartition(B,-k_most_correlated,axis=1)[:,-k_most_correlated:]
         #We keep only the large correlations
         for i in range(nU):
             for j in Large_Correlation_indices[i,:]:
                 shift_operator_users_matrix[i,j] = B[i,j]        
         row_sums = shift_operator_users_matrix.sum(axis=1)
-        shift_operator_users_matrix = shift_operator_users_matrix / row_sums[:, np.newaxis]
-        self.shift_operator_users_matrix = shift_operator_users_matrix
+        shift_operator_users_matrix = shift_operator_users_matrix / row_sums[:, np.newaxis]        
+        #We transpose the shift operator matrix so that it acts as a Markov chain when right-multiplied
+        shift_operator_users_matrix = shift_operator_users_matrix.t()
+        self.shift_operator_users_matrix = shift_operator_users_matrix 
+        return shift_operator_users_matrix
 
     def produce_input_output_pair(self, itemIdxs_input_list, itemIdxs_output_list):
         #Given the itemIdxs (in the original DB) of items of interests it
@@ -148,7 +152,7 @@ class RecommendationSystem:
         nU = self.num_users
         nInput = len(itemIdxs_input_list)
         #Input first:
-        X = np.zeros([nInput,nU])
+        X = np.zeros([nInput,nU],dtype="float32")
         for id_u, userIdx in enumerate(self.userIdxs):
             recentered_ratings_u = self.recentered_interactions_dict_by_user[userIdx]
             for id_item, itemIdx in enumerate(itemIdxs_input_list):
@@ -157,7 +161,7 @@ class RecommendationSystem:
                 
         #Output:
         nOutput = len(itemIdxs_output_list)
-        Y = np.zeros([nOutput,nU])
+        Y = np.zeros([nOutput,nU],dtype="float32")
         Z = np.zeros([nOutput,nU], dtype=bool)
         for id_u, userIdx in enumerate(self.userIdxs):
             recentered_ratings_u = self.recentered_interactions_dict_by_user[userIdx]
@@ -168,14 +172,60 @@ class RecommendationSystem:
 
         return X, Y, Z
 
-    def produce_input_output_pair_tensors(self, itemIdxs_input_list, itemIdxs_output_list):
+    def produce_input_output_pair_tensors(self, itemIdxs_input_list, itemIdxs_output_list, fraction_available_data=0.7, num_samples = 5, ):
+        X,Y,Z = self.produce_input_output_pair(itemIdxs_input_list, itemIdxs_output_list)     
+        As, Bs = self.generate_decompositions(support_matrix = Z,fraction_available_data = fraction_available_data, num_samples=num_samples)
+        assert len(As) == len(Bs)
+        tensorXs = [torch.tensor(A*X) for A in As]
+        tensorYs = [torch.tensor(B*X) for B in Bs]
+        tensorBs = [torch.tensor(B) for B in Bs]
+        tensorX = torch.cat(tensorXs,0)
+        tensorY = torch.cat(tensorYs,0)
+        tensorZ = torch.cat(tensorBs)
+        return tensorX.unsqueeze(1), tensorY.unsqueeze(1), tensorZ.unsqueeze(1)
+
+    def generate_decompositions(self, support_matrix, fraction_available_data, num_samples):
+        #Given a matrix with {0,1} entries Z and a fraction alpha
+        #decompose Z = A + B where A has fraction_alpha of the total number of ones.
+        #check all entries of Z are integers in {0,1}
+        Z = support_matrix
+        As = []
+        Bs = []
+        for k in range(num_samples):
+            matrix_size = Z.shape
+            A = np.zeros([matrix_size[0],matrix_size[1]], dtype = "float32")
+            B = np.zeros([matrix_size[0],matrix_size[1]], dtype = "float32")
+
+            for i in range(matrix_size[0]):
+                for j in range(matrix_size[1]):
+                    if Z[i,j] == 1:
+                        value = np.random.binomial(size = 1, n = 1, p = fraction_available_data)
+                        A[i,j] = value[0]
+
+            B = Z-A
+            As.append(A)
+            Bs.append(B)
+        return As, Bs
+
+
+
+    def old_produce_input_output_pair_tensors(self, itemIdxs_input_list, itemIdxs_output_list, num_samples = 1):
         #Returns data in the pytorch format of 3-tensors
         #compatible with our operator networks implementation with ONE input feature
-        X,Y,Z = self.produce_input_output_pair(itemIdxs_input_list, itemIdxs_output_list)        
-        X = torch.Tensor(X).unsqueeze(1)
-        Y = torch.Tensor(Y).unsqueeze(1)
-        Z = torch.Tensor(Z).unsqueeze(1)
+        X,Y,Z = self.produce_input_output_pair(itemIdxs_input_list, itemIdxs_output_list)     
+        Xs = []
+        Ys = []
+        Zs = []
+
+        for j in range(num_samples):
+            #We compute many support decompositions and produce the data split as samples
+            A,B = self.compute_random_support_decomposition(Z,0.3)
+            pdb.set_trace()   
+            X = torch.Tensor(X).unsqueeze(1)
+            Y = torch.Tensor(Y).unsqueeze(1)
+            Z = torch.Tensor(Z).unsqueeze(1)
         return X,Y,Z
+    
 
 class DataCoreClass:
     def __init__(self, df_items, df_interactions, user_column_name, item_column_name, rating_column_name,rating_lower_bound, rating_upper_bound) -> None:
