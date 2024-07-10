@@ -57,6 +57,7 @@ def train_model_with_regularization(rs_model, regularization_parameter, training
     rs_model_out_of_sample_loss = []
     optimizer = optim.SGD(rs_model.parameters(),lr = learning_rate)
 
+
     while counter < nIters:
         #We compute the in-sample cost and compute gradients (train) accordingly...
         rs_model.zero_grad()
@@ -149,7 +150,7 @@ if __name__ == "__main__":
     absolute_path = os.path.dirname(os.path.abspath(__file__))
     print(os.chdir(absolute_path)) #Now we are guaranteed to be in the /operatornetworks  dir
     # 1. We load the raw data from the database and specify the experimental setup in terms of movies and users
-    df_movies, df_interactions = movieDataExample.raw_data_loader(ubound_popular_movies=200, ubound_popular_users=100)
+    df_movies, df_interactions = movieDataExample.raw_data_loader(ubound_popular_movies=200, ubound_popular_users=300)
     DC = recommendClasses.DataCoreClass(
         df_items = df_movies,
         df_interactions= df_interactions,
@@ -160,7 +161,7 @@ if __name__ == "__main__":
         rating_upper_bound = 5.0
     )
     #We split the data into disjoint sets for training and testing
-    DC_train, DC_test = DC.train_test_split_datacores(percentage_of_data_for_training = 0.6)
+    DC_train, DC_test = DC.train_test_split_datacores(percentage_of_data_for_training = 0.8)
 
     #We call our recommendation systems class and give it access to the training data only, 
     #and testing data only respectively
@@ -187,7 +188,7 @@ if __name__ == "__main__":
 
     #Next we look at the shift operators obtained from collaborative filtering:
     make_correlations_plot(RS = RS, figure_name= "C1_Correlations_matrix")
-    full_operator_tuple = make_nbs_shift_operator_plots(RS=RS, desired_k_most_correlated_nbs_list=[2,3,4],figures_path=figures_path,vmin = 0.0,vmax = 1.0)
+    full_operator_tuple = make_nbs_shift_operator_plots(RS=RS, desired_k_most_correlated_nbs_list=[10,15,20],figures_path=figures_path,vmin = 0.0,vmax = 1.0)
 
 
     #*********E X A M P L E S ************************************************************************
@@ -222,14 +223,18 @@ if __name__ == "__main__":
 
     #Example 1: GNN
     #Next we build our operator network and evaluate it in the operators we have constructed, allowing a slightly higher degree
-    M = archit.MonomialWordSupport(num_variables = 1, allowed_support = 2)#we SET SUPPORT
-    operator_tuple = (full_operator_tuple[0],) #The full operator tuple was defined above
+    M = archit.MonomialWordSupport(num_variables = 1, allowed_support = 6)#we SET SUPPORT
+    #operator_tuple = (full_operator_tuple[0],) #The full operator tuple was defined above
+    operator_tuple = (full_operator_tuple[2],) #The full operator tuple was defined above,later diffuses more slowlyso it is harder to beat
     M.evaluate_at_operator_tuple(operator_tuple = operator_tuple)
     #Using M we now define our operator network
     #With the monomial support we can build the basic layer,
     #EXAMPLE 1: given partial ratings for a movie produce remaining ratings
-    GNN_filter_layer = archit.OperatorFilterLayer(num_features_in = 1, num_features_out = 1, monomial_word_support = M)
-    #
+    #parameters of the model
+    num_features_in = 1
+    num_features_out = 1
+    monomial_word_support = M
+    #training and testing data
     X, Y, Z = RS.produce_input_output_pair_tensors(
         itemIdxs_input_list=P_movies_idx, 
         itemIdxs_output_list=P_movies_idx,
@@ -243,8 +248,10 @@ if __name__ == "__main__":
         num_samples = 2)
 
 
-    nIters = 2000 #we use the same number of iterations for all models
+    nIters = 3000 #we use the same number of iterations for all models
+    #Now onto the actual computation...
     result_row = dict([("model_name","GNN_reg_0.0")])
+    GNN_filter_layer = archit.OperatorFilterLayer(num_features_in = num_features_in, num_features_out = num_features_out, monomial_word_support = monomial_word_support)
     train_model_with_regularization(
         rs_model = GNN_filter_layer,
         regularization_parameter = 0.0,
@@ -255,10 +262,12 @@ if __name__ == "__main__":
         learning_rate=0.005)
     results_array.append(result_row)
 
-    result_row = dict([("model_name","GNN_reg_0.25")])
+
+    result_row = dict([("model_name","GNN_reg_0.12")])
+    GNN_filter_layer = archit.OperatorFilterLayer(num_features_in = num_features_in, num_features_out = num_features_out, monomial_word_support = monomial_word_support)
     train_model_with_regularization(
         rs_model = GNN_filter_layer,
-        regularization_parameter = 0.25,
+        regularization_parameter = 0.12,
         training_data_triple = [X,Y,Z],
         nIters = nIters,
         testing_data_triple = [Xtest,Ytest,Ztest],
@@ -268,6 +277,7 @@ if __name__ == "__main__":
 
 
     result_row = dict([("model_name","GNN_reg_0.5")])
+    GNN_filter_layer = archit.OperatorFilterLayer(num_features_in = num_features_in, num_features_out = num_features_out, monomial_word_support = monomial_word_support)
     train_model_with_regularization(
         rs_model = GNN_filter_layer,
         regularization_parameter = 0.5,
@@ -284,13 +294,17 @@ if __name__ == "__main__":
     #Next we build our operator network and evaluate it in the operators we have constructed, allowing a slightly higher degree
     M = archit.MonomialWordSupport(num_variables = 2, allowed_support = 2)#we SET SUPPORT
     operator_tuple = (full_operator_tuple[0],full_operator_tuple[2]) #The full operator tuple was defined above
+    #operator_tuple = (full_operator_tuple[0],full_operator_tuple[1],full_operator_tuple[2])
     M.evaluate_at_operator_tuple(operator_tuple = operator_tuple)
     #Using M we now define our operator network
     #With the monomial support we can build the basic layer,
-    ONN_filter_layer = archit.OperatorFilterLayer(num_features_in = 1, num_features_out = 1, monomial_word_support = M)
-
-    nIters = 2000 #we use the same number of iterations for all 2ONN models
+    num_features_in = 1
+    num_features_out = 1
+    monomial_word_support = M
+    
+    #nIters = nIters #we use the same number of iterations for all 2ONN models
     result_row = dict([("model_name","2ONN_reg_0.0")])
+    ONN_filter_layer = archit.OperatorFilterLayer(num_features_in=num_features_in, num_features_out=num_features_out,monomial_word_support=monomial_word_support)
     train_model_with_regularization(
         rs_model = ONN_filter_layer,
         regularization_parameter = 0.0,
@@ -302,10 +316,11 @@ if __name__ == "__main__":
 
     results_array.append(result_row)
 
-    result_row = dict([("model_name","2ONN_reg_0.25")])
+    result_row = dict([("model_name","2ONN_reg_0.125")])
+    ONN_filter_layer = archit.OperatorFilterLayer(num_features_in=num_features_in, num_features_out=num_features_out,monomial_word_support=monomial_word_support)
     train_model_with_regularization(
         rs_model = ONN_filter_layer,
-        regularization_parameter = 0.25,
+        regularization_parameter = 0.125,
         training_data_triple = [X,Y,Z],
         nIters = nIters,
         testing_data_triple = [Xtest,Ytest,Ztest],
