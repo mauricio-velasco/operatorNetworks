@@ -145,7 +145,7 @@ def make_and_save_out_of_sample_plots(results_array,figures_path):
 
 if __name__ == "__main__":
     #This script trains several recommendation system from scratch on the movieLens dataset
-    #and allows reproduction of figures and data tables as appearing in the article
+    #and allows reproduction of figures and data tables as appearing in the article.
     import os
     absolute_path = os.path.dirname(os.path.abspath(__file__))
     print(os.chdir(absolute_path)) #Now we are guaranteed to be in the /operatornetworks  dir
@@ -221,11 +221,11 @@ if __name__ == "__main__":
 
     results_array = [] #We will put the results in an array of dicts
 
-    #Example 1: GNN
+    #Example 1: GNN HERE:
     #Next we build our operator network and evaluate it in the operators we have constructed, allowing a slightly higher degree
     M = archit.MonomialWordSupport(num_variables = 1, allowed_support = 6)#we SET SUPPORT
     #operator_tuple = (full_operator_tuple[0],) #The full operator tuple was defined above
-    operator_tuple = (full_operator_tuple[2],) #The full operator tuple was defined above,later diffuses more slowlyso it is harder to beat
+    operator_tuple = (full_operator_tuple[2],) #The full operator tuple was defined above, the latter diffuses more slowly so it is harder to beat
     M.evaluate_at_operator_tuple(operator_tuple = operator_tuple)
     #Using M we now define our operator network
     #With the monomial support we can build the basic layer,
@@ -248,7 +248,7 @@ if __name__ == "__main__":
         num_samples = 2)
 
 
-    nIters = 3000 #we use the same number of iterations for all models
+    nIters = 1500 #we use the same number of iterations for all models
     #Now onto the actual computation...
     result_row = dict([("model_name","GNN_reg_0.0")])
     GNN_filter_layer = archit.OperatorFilterLayer(num_features_in = num_features_in, num_features_out = num_features_out, monomial_word_support = monomial_word_support)
@@ -291,7 +291,7 @@ if __name__ == "__main__":
 
 
     #Example 2: Two operators network
-    #Next we build our operator network and evaluate it in the operators we have constructed, allowing a slightly higher degree
+    #Next we build our operator network and evaluate it in the operators we have constructed,
     M = archit.MonomialWordSupport(num_variables = 2, allowed_support = 2)#we SET SUPPORT
     operator_tuple = (full_operator_tuple[0],full_operator_tuple[2]) #The full operator tuple was defined above
     #operator_tuple = (full_operator_tuple[0],full_operator_tuple[1],full_operator_tuple[2])
@@ -334,70 +334,7 @@ if __name__ == "__main__":
     figures_path = "./paper_figures/"
     make_and_save_individual_plots(results_array,figures_path)
     make_and_save_out_of_sample_plots(results_array,figures_path)
-    pdb.set_trace()
+    #Figures completed...
 
  
-    #We do a quick training loop
-    #We would like to report both in-sample and out-of-sample error
-    epsilon = 0.005 #for the learning rate
-    optimizer = optim.SGD(ONN_filter_layer.parameters(),lr=epsilon)
-
-    ONN_in_sample_loss = []
-    ONN_out_of_sample_loss = []
-
-    counter = 0
-    nIters = 10000
-    while counter < nIters:
-        #We compute the in-sample cost and compute gradients (train) accordingly...
-        ONN_filter_layer.zero_grad()
-        YHat = ONN_filter_layer.forward(X)
-        loss = torch.sum(((YHat*Z)-(Y*Z))**2)/torch.sum(Z)#We measure square error only along the entries with data    
-        cost = loss.item()#TODO: What does .item do exactly?
-        ONN_in_sample_loss.append(cost)
-        loss.backward()
-        optimizer.step()
-        counter+=1
-
-        #We compute the out of sample cost...
-        YHatTest = ONN_filter_layer.forward(Xtest)
-        out_of_sample_cost = torch.sum(((YHatTest*Ztest)-(Ytest*Ztest))**2)/torch.sum(Ztest)
-        oso_cost = out_of_sample_cost.item()
-        ONN_out_of_sample_loss.append(oso_cost)
-
-        if counter%5 == 0:
-            print(f"Step {counter} Current Loss: {cost}" )
-            print(f"Step {counter} Out of sample loss: {out_of_sample_cost}")
-            print("\n")
-
-    print(f"BEST out_of_sample_loss {np.min(ONN_out_of_sample_loss)}" )
-    print("\n")
-
-
-
-    #Once we finish training we produce the resulting figures
-    Y2 = YHat.detach()
-    ax = sns.heatmap(Y2[:,0,:], cmap="coolwarm", linewidth=0.3)
-    figure_name = "GNN_forecast_deg_2.png"
-    plt.savefig(figures_path+figure_name)
-    plt.clf()
-
-    #Next we create figures illustrating the in-sample and out-of-sample error behavior
-    Xs = range(nIters)
-    CF_loss = [closs for k in range(nIters)] 
-    min_ONN_out_of_sample_loss = [np.min(ONN_out_of_sample_loss) for k in range(nIters)]
-    fig, ax = plt.subplots()
-    ax.set(xlabel='Var independiente', ylabel='Var dependiente')
-    ax.grid()
-    ax.axis(xmin = 0,xmax = nIters)
-    ax.plot(Xs,CF_loss, label="CF_loss") #Hace la grafica, poniendo puntos en las parebas correspondientes 
-    ax.plot(Xs,ONN_in_sample_loss, label="GNN_loss_i") #Hace la grafica, poniendo puntos en las parebas correspondientes 
-    ax.plot(Xs,ONN_out_of_sample_loss, label="GNN_loss_o") #Hace la grafica, poniendo puntos en las parebas correspondientes 
-    ax.plot(Xs,min_ONN_out_of_sample_loss, label="min_loss_o") #Hace la grafica, poniendo puntos en las parebas correspondientes 
-    figure_name = "dynamic_loss_operator_NN_plot"
-    fig.savefig(figures_path+figure_name) #Graba un archivo con la imagen
-    fig.show()
-    fig.clf()
-
-
-
-
+  
